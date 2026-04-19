@@ -1,166 +1,262 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ko" lang="ko">
+<!DOCTYPE html>
+<html lang="th">
 <head>
-<title>Cross-Browser QRCode generator for Javascript</title>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-<script type="text/javascript" src="jquery.min.js"></script>
-<script type="text/javascript" src="qrcode.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QR Code Generator</title>
+<script src="qrcode.js"></script>
 <style>
-#setter {
-	height:1100px;
+  :root {
+    --bg: #fafbfc;
+    --bg-gradient: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --accent: #2f54eb;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+                 "Noto Sans Thai", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, var(--bg-gradient) 0%, var(--bg) 70%),
+      var(--bg);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Ambient floating dots */
+  .ambient {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .ambient span {
+    position: absolute;
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: var(--text);
+    opacity: 0;
+    animation: float 12s ease-in-out infinite;
+  }
+  .ambient span:nth-child(1)  { top: 15%; left: 12%; animation-delay: 0s;   }
+  .ambient span:nth-child(2)  { top: 78%; left: 8%;  animation-delay: 2s;   }
+  .ambient span:nth-child(3)  { top: 22%; left: 88%; animation-delay: 4s;   }
+  .ambient span:nth-child(4)  { top: 65%; left: 92%; animation-delay: 1s;   }
+  .ambient span:nth-child(5)  { top: 40%; left: 5%;  animation-delay: 6s;   }
+  .ambient span:nth-child(6)  { top: 85%; left: 50%; animation-delay: 3s;   }
+  .ambient span:nth-child(7)  { top: 10%; left: 55%; animation-delay: 5s;   }
+  .ambient span:nth-child(8)  { top: 55%; left: 80%; animation-delay: 7s;   }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) translateX(0); opacity: 0; }
+    20%, 80% { opacity: 0.08; }
+    50%      { transform: translateY(-20px) translateX(10px); opacity: 0.12; }
+  }
+
+  .container {
+    text-align: center;
+    padding: 32px;
+    max-width: 560px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Animated QR visual */
+  .qr-visual {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 48px;
+    display: grid;
+    gap: 2px;
+    animation: breathe 6s ease-in-out infinite;
+    animation-delay: 2.5s;
+  }
+  .qr-visual .cell {
+    background: transparent;
+    border-radius: 2px;
+    opacity: 0;
+    transform: scale(0.3);
+    animation: reveal 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .qr-visual .cell.dark {
+    background: var(--text);
+  }
+  @keyframes reveal {
+    from { opacity: 0; transform: scale(0.3); }
+    to   { opacity: 1; transform: scale(1); }
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.025); }
+  }
+
+  h1 {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin: 0 0 16px;
+    opacity: 0;
+    animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 1.3s;
+  }
+  p.subtitle {
+    font-size: 17px;
+    color: var(--muted);
+    margin: 0 0 44px;
+    line-height: 1.55;
+    opacity: 0;
+    animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 1.5s;
+  }
+
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 30px;
+    border-radius: 999px;
+    background: var(--text);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 15px;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+                background 0.3s ease;
+    opacity: 0;
+    animation: fadeUp 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: 1.7s;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+  }
+  .cta:hover {
+    background: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(47, 84, 235, 0.28);
+  }
+  .cta .arrow {
+    display: inline-block;
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .cta:hover .arrow {
+    transform: translateX(4px);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .footer {
+    position: absolute;
+    bottom: 28px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    opacity: 0;
+    animation: fadeIn 1.2s ease forwards;
+    animation-delay: 2.2s;
+  }
+  @keyframes fadeIn {
+    to { opacity: 0.7; }
+  }
+
+  @media (max-width: 600px) {
+    h1 { font-size: 34px; }
+    p.subtitle { font-size: 15px; margin-bottom: 36px; }
+    .qr-visual { width: 160px; height: 160px; margin-bottom: 36px; }
+    .container { padding: 24px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 </style>
 </head>
 <body>
-	<!-- SET QR Number 1 -->
-<div>
-<div id="setter" style="position: relative; width: 100%;">
-	<button onclick="makeCode(); ">Generate QR</button>
-	<input id="text" type="text" value="Please Input URL" style="width:80%"/><br /> 
-	<div id="qrcode" style="width:100px; height:100px; margin-top:15px; float:left"></div>
-</div>
-	<!-- SET QR Number 2 -->
-<div id="setter" style="position:relative; width: 100%;">
-	<button onclick="makeCode2();">Generate QR</button>
-	<input id="text2" type="text" value="Please Input URL" style="width:80%"/><br /> 
-	<div id="qrcode2" style="width:100px; height:100px; margin-top:15px; float:left"></div>
-</div>
-	<!-- SET QR Number 3 -->
-<div id="setter" style="position:relative; width: 100%;">
-	<button onclick="makeCode3();">Generate QR</button>
-	<input id="text3" type="text" value="Please Input URL" style="width:80%"/><br /> 
-	<div id="qrcode3" style="width:100px; height:100px; margin-top:15px; float:left"></div>
-</div>
-	<!-- SET QR Number 4 -->
-<div id="setter" style="position:relative; width: 100%;">
-	<button onclick="makeCode4();">Generate QR</button>
-	<input id="text4" type="text" value="Please Input URL" style="width:80%"/><br /> 
-	<div id="qrcode4" style="width:100px; height:100px; margin-top:15px; float:left"></div>
-</div>
-	<!-- SET QR Number 5 -->
-<div id="setter" style="position:relative; width: 100%;">
-	<button onclick="makeCode5();">Generate QR</button>
-	<input id="text5" type="text" value="Please Input URL" style="width:80%"/><br /> 
-	<div id="qrcode5" style="width:100px; height:100px; margin-top:15px; float:left"></div>
-</div>
+
+<div class="ambient" aria-hidden="true">
+  <span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span>
 </div>
 
-	<!-- Function for SET QR Number 1 -->
-<script type="text/javascript">
-var qrcode = new QRCode(document.getElementById("qrcode"), {
-	width : 800,
-	height : 800
-});
+<div class="container">
+  <div class="qr-visual" id="qrVisual" aria-hidden="true"></div>
+  <h1>QR Code Generator</h1>
+  <p class="subtitle">สร้าง QR Code หลายอันพร้อมกัน &mdash; สะอาด, รวดเร็ว, พร้อมใช้งาน</p>
+  <a href="qr-generator.html" class="cta">
+    Get Started
+    <span class="arrow">&rarr;</span>
+  </a>
+</div>
 
-function makeCode () {		
-	var elText = document.getElementById("text");
-	
-	if (!elText.value) {
-		alert("Input a text");
-		elText.focus();
-		return;
-	}
-	
-	qrcode.makeCode(elText.value);
-	// Console.log(elText.value);
-}
-function download (a) {
-	var dnl = document.getElementsByClassName("QRElement")[a].scr;
-}
-// <!-- Code for enter on keyboard and run function-->
-// $("#text").
-// 	on("blur", function () {
-// 		makeCode();
-// 	}).
-// 	on("keydown", function (e) {
-// 		if (e.keyCode == 13) {
-// 			makeCode();
-// 		}
-// 	});
+<div class="footer">MINIMAL &middot; BATCH &middot; PNG / SVG</div>
 
+<script>
+(function () {
+  'use strict';
+  // Generate a decorative QR (no interaction — purely visual)
+  var holder = document.createElement('div');
+  holder.style.position = 'absolute';
+  holder.style.left = '-9999px';
+  document.body.appendChild(holder);
+
+  try {
+    var qr = new QRCode(holder, {
+      text: 'Welcome',
+      width: 64, height: 64,
+      correctLevel: QRCode.CorrectLevel.H
+    });
+    var model = qr._oQRCode;
+    if (!model || !model.moduleCount) throw new Error('no model');
+
+    var n = model.moduleCount;
+    var visual = document.getElementById('qrVisual');
+    visual.style.gridTemplateColumns = 'repeat(' + n + ', 1fr)';
+    visual.style.gridTemplateRows = 'repeat(' + n + ', 1fr)';
+
+    var cx = (n - 1) / 2, cy = (n - 1) / 2;
+    var maxDist = Math.sqrt(cx * cx + cy * cy);
+
+    var frag = document.createDocumentFragment();
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        var cell = document.createElement('div');
+        cell.className = 'cell' + (model.isDark(r, c) ? ' dark' : '');
+        // Organic reveal from center outward
+        var dist = Math.sqrt((r - cy) * (r - cy) + (c - cx) * (c - cx));
+        var delay = (dist / maxDist) * 900 + Math.random() * 120;
+        cell.style.animationDelay = delay.toFixed(0) + 'ms';
+        frag.appendChild(cell);
+      }
+    }
+    visual.appendChild(frag);
+  } catch (e) {
+    // Fallback: hide visual if QR can't be built
+    var v = document.getElementById('qrVisual');
+    if (v) v.style.display = 'none';
+  } finally {
+    if (holder.parentNode) holder.parentNode.removeChild(holder);
+  }
+})();
 </script>
-
-
-	<!-- Function for SET QR Number 2 -->
-<script type="text/javascript">
-	
-	var qrcode2 = new QRCode(document.getElementById("qrcode2"), {
-		width : 1000,
-		height : 1000
-	});
-	
-	function makeCode2 () {		
-		var elText = document.getElementById("text2");
-		
-		if (!elText.value) {
-			alert("Input a text");
-			elText.focus();
-			return;
-		}
-		
-		qrcode2.makeCode(elText.value);
-		
-	}
- </script>
-	<!-- Function for SET QR Number 3 -->
-	<script type="text/javascript">
-		var qrcode3 = new QRCode(document.getElementById("qrcode3"), {
-			width : 1000,
-			height : 1000
-		});
-		
-		function makeCode3 () {		
-			var elText = document.getElementById("text3");
-			
-			if (!elText.value) {
-				alert("Input a text");
-				elText.focus();
-				return;
-			}
-			
-			qrcode3.makeCode(elText.value);
-			
-		}
-	 </script>
-	<!-- Function for SET QR Number 4 -->
-	<script type="text/javascript">
-		var qrcode4 = new QRCode(document.getElementById("qrcode4"), {
-			width : 1000,
-			height : 1000
-		});
-		
-		function makeCode4 () {		
-			var elText = document.getElementById("text4");
-			
-			if (!elText.value) {
-				alert("Input a text");
-				elText.focus();
-				return;
-			}
-			
-			qrcode4.makeCode(elText.value);
-			
-		}
-	 </script>
-	 	<!-- Function for SET QR Number 5 -->
-	<script type="text/javascript">
-	var qrcode5 = new QRCode(document.getElementById("qrcode5"), {
-		width : 1000,
-		height : 1000
-	});
-	
-	function makeCode5 () {		
-		var elText = document.getElementById("text5");
-		
-		if (!elText.value) {
-			alert("Input a text");
-			elText.focus();
-			return;
-		}
-		
-		qrcode5.makeCode(elText.value);
-		
-	}
- 	</script>
 </body>
+</html>
