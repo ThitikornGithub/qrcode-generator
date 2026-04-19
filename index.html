@@ -1,0 +1,166 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="ko" lang="ko">
+<head>
+<title>Cross-Browser QRCode generator for Javascript</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+<script type="text/javascript" src="jquery.min.js"></script>
+<script type="text/javascript" src="qrcode.js"></script>
+<style>
+#setter {
+	height:1100px;
+  }
+</style>
+</head>
+<body>
+	<!-- SET QR Number 1 -->
+<div>
+<div id="setter" style="position: relative; width: 100%;">
+	<button onclick="makeCode(); ">Generate QR</button>
+	<input id="text" type="text" value="Please Input URL" style="width:80%"/><br /> 
+	<div id="qrcode" style="width:100px; height:100px; margin-top:15px; float:left"></div>
+</div>
+	<!-- SET QR Number 2 -->
+<div id="setter" style="position:relative; width: 100%;">
+	<button onclick="makeCode2();">Generate QR</button>
+	<input id="text2" type="text" value="Please Input URL" style="width:80%"/><br /> 
+	<div id="qrcode2" style="width:100px; height:100px; margin-top:15px; float:left"></div>
+</div>
+	<!-- SET QR Number 3 -->
+<div id="setter" style="position:relative; width: 100%;">
+	<button onclick="makeCode3();">Generate QR</button>
+	<input id="text3" type="text" value="Please Input URL" style="width:80%"/><br /> 
+	<div id="qrcode3" style="width:100px; height:100px; margin-top:15px; float:left"></div>
+</div>
+	<!-- SET QR Number 4 -->
+<div id="setter" style="position:relative; width: 100%;">
+	<button onclick="makeCode4();">Generate QR</button>
+	<input id="text4" type="text" value="Please Input URL" style="width:80%"/><br /> 
+	<div id="qrcode4" style="width:100px; height:100px; margin-top:15px; float:left"></div>
+</div>
+	<!-- SET QR Number 5 -->
+<div id="setter" style="position:relative; width: 100%;">
+	<button onclick="makeCode5();">Generate QR</button>
+	<input id="text5" type="text" value="Please Input URL" style="width:80%"/><br /> 
+	<div id="qrcode5" style="width:100px; height:100px; margin-top:15px; float:left"></div>
+</div>
+</div>
+
+	<!-- Function for SET QR Number 1 -->
+<script type="text/javascript">
+var qrcode = new QRCode(document.getElementById("qrcode"), {
+	width : 800,
+	height : 800
+});
+
+function makeCode () {		
+	var elText = document.getElementById("text");
+	
+	if (!elText.value) {
+		alert("Input a text");
+		elText.focus();
+		return;
+	}
+	
+	qrcode.makeCode(elText.value);
+	// Console.log(elText.value);
+}
+function download (a) {
+	var dnl = document.getElementsByClassName("QRElement")[a].scr;
+}
+// <!-- Code for enter on keyboard and run function-->
+// $("#text").
+// 	on("blur", function () {
+// 		makeCode();
+// 	}).
+// 	on("keydown", function (e) {
+// 		if (e.keyCode == 13) {
+// 			makeCode();
+// 		}
+// 	});
+
+</script>
+
+
+	<!-- Function for SET QR Number 2 -->
+<script type="text/javascript">
+	
+	var qrcode2 = new QRCode(document.getElementById("qrcode2"), {
+		width : 1000,
+		height : 1000
+	});
+	
+	function makeCode2 () {		
+		var elText = document.getElementById("text2");
+		
+		if (!elText.value) {
+			alert("Input a text");
+			elText.focus();
+			return;
+		}
+		
+		qrcode2.makeCode(elText.value);
+		
+	}
+ </script>
+	<!-- Function for SET QR Number 3 -->
+	<script type="text/javascript">
+		var qrcode3 = new QRCode(document.getElementById("qrcode3"), {
+			width : 1000,
+			height : 1000
+		});
+		
+		function makeCode3 () {		
+			var elText = document.getElementById("text3");
+			
+			if (!elText.value) {
+				alert("Input a text");
+				elText.focus();
+				return;
+			}
+			
+			qrcode3.makeCode(elText.value);
+			
+		}
+	 </script>
+	<!-- Function for SET QR Number 4 -->
+	<script type="text/javascript">
+		var qrcode4 = new QRCode(document.getElementById("qrcode4"), {
+			width : 1000,
+			height : 1000
+		});
+		
+		function makeCode4 () {		
+			var elText = document.getElementById("text4");
+			
+			if (!elText.value) {
+				alert("Input a text");
+				elText.focus();
+				return;
+			}
+			
+			qrcode4.makeCode(elText.value);
+			
+		}
+	 </script>
+	 	<!-- Function for SET QR Number 5 -->
+	<script type="text/javascript">
+	var qrcode5 = new QRCode(document.getElementById("qrcode5"), {
+		width : 1000,
+		height : 1000
+	});
+	
+	function makeCode5 () {		
+		var elText = document.getElementById("text5");
+		
+		if (!elText.value) {
+			alert("Input a text");
+			elText.focus();
+			return;
+		}
+		
+		qrcode5.makeCode(elText.value);
+		
+	}
+ 	</script>
+</body>

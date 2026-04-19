@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QR Code Generator — Batch</title>
+<script src="qrcode.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --border: #e3e6ef;
+    --text: #1f2330;
+    --muted: #6b7280;
+    --primary: #2f54eb;
+    --primary-hover: #1d3fc4;
+    --danger: #e5484d;
+    --danger-soft: #fff1f2;
+    --warn: #d97706;
+    --warn-soft: #fffbeb;
+    --success: #16a34a;
+    --shadow: 0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", "Noto Sans Thai", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+  header { margin-bottom: 24px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: #374151; }
+  .subtitle { color: var(--muted); font-size: 14px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .field { flex: 1; min-width: 180px; }
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #374151;
+  }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  textarea, select, input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  textarea:focus, select:focus, input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(47,84,235,.15);
+  }
+  textarea { min-height: 160px; resize: vertical; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+
+  button {
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-secondary { background: #fff; color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-small { padding: 6px 10px; font-size: 12px; }
+  .btn-icon {
+    background: transparent; border: none; width: 28px; height: 28px; padding: 0;
+    font-size: 18px; line-height: 1; color: var(--muted); cursor: pointer;
+    border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  .btn-icon:hover { background: var(--danger-soft); color: var(--danger); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+
+  .checkbox-row { display: flex; align-items: center; gap: 8px; padding-top: 22px; }
+  .checkbox-row input { width: 18px; height: 18px; }
+  .checkbox-row label { margin: 0; font-weight: 500; font-size: 14px; cursor: pointer; }
+
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+
+  .stats { color: var(--muted); font-size: 13px; margin: 16px 0; }
+
+  /* Preview list */
+  .preview-list {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafbfd;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .preview-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+  }
+  .preview-row:last-child { border-bottom: none; }
+  .preview-main {
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .preview-name {
+    font-weight: 600; font-size: 13px; color: var(--text);
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .preview-name.muted { color: var(--muted); font-weight: 400; font-style: italic; }
+  .preview-url {
+    flex: 1; min-width: 0;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--muted);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .empty-small {
+    padding: 20px; text-align: center; color: var(--muted); font-size: 13px;
+  }
+
+  .badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 4px; font-size: 12px; font-weight: 600;
+    flex-shrink: 0;
+  }
+  .badge-warn { background: var(--warn-soft); color: var(--warn); }
+  .badge-error { background: var(--danger-soft); color: var(--danger); }
+
+  /* Result cards */
+  .qr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+  .qr-item {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-shadow: var(--shadow);
+  }
+  .qr-item .btn-delete {
+    position: absolute; top: 6px; right: 6px;
+  }
+  .qr-canvas-wrap {
+    background: white;
+    padding: 8px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 200px;
+  }
+  .qr-canvas-wrap canvas {
+    max-width: 200px;
+    max-height: 240px;
+    display: block;
+  }
+  .qr-filename {
+    width: 100%;
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 6px;
+    font-family: inherit;
+  }
+  .qr-url {
+    font-size: 11px; color: var(--muted);
+    text-align: center; word-break: break-all;
+    max-height: 32px; overflow: hidden;
+    margin-bottom: 12px; width: 100%;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .btn-group { display: flex; gap: 6px; width: 100%; }
+  .btn-group button { flex: 1; }
+  .qr-error {
+    color: var(--danger); font-size: 12px; text-align: center; padding: 20px;
+    background: var(--danger-soft); border-radius: 8px; width: 100%;
+  }
+
+  .empty-state {
+    text-align: center; padding: 48px 20px; color: var(--muted);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 10px; flex-wrap: wrap;
+  }
+  .toolbar-actions { display: flex; gap: 8px; }
+
+  .hidden-input { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>QR Code Generator</h1>
+    <div class="subtitle">สร้าง QR หลายอันพร้อมกัน • ตั้งชื่อได้ • รองรับ CSV • Export PNG / SVG</div>
+  </header>
+
+  <!-- INPUT CARD -->
+  <div class="card">
+    <div class="toolbar">
+      <h2 style="margin-bottom:0;">URLs / Text</h2>
+      <div class="toolbar-actions">
+        <button class="btn-secondary btn-small" id="btnImportFile">Import CSV file</button>
+        <button class="btn-secondary btn-small" id="btnSample">ตัวอย่าง</button>
+        <input type="file" id="fileInput" class="hidden-input" accept=".csv,.txt,.tsv" />
+      </div>
+    </div>
+    <textarea id="urls" placeholder="Name 1 | https://example1.com
+Name 2 | https://example2.com
+Name 3 | https://example3.com"></textarea>
+    <div class="hint">
+      รองรับ 3 รูปแบบต่อบรรทัด:
+      <strong>ชื่อ | URL</strong> &nbsp;•&nbsp;
+      <strong>ชื่อ, URL</strong> (CSV) &nbsp;•&nbsp;
+      <strong>URL</strong> เฉยๆ (ใช้ URL เป็นชื่อไฟล์อัตโนมัติ)
+    </div>
+  </div>
+
+  <!-- PREVIEW CARD -->
+  <div class="card">
+    <div class="toolbar">
+      <h2 style="margin-bottom:0;">Preview <span id="previewCount" style="color:var(--muted); font-weight:500;"></span></h2>
+      <div class="toolbar-actions">
+        <button class="btn-secondary btn-small" id="btnClearAll">Clear ทั้งหมด</button>
+      </div>
+    </div>
+    <div class="preview-list" id="preview">
+      <div class="empty-small">ยังไม่มีรายการ — พิมพ์หรือ import ด้านบน</div>
+    </div>
+  </div>
+
+  <!-- SETTINGS CARD -->
+  <div class="card">
+    <h2>การตั้งค่า</h2>
+    <div class="row">
+      <div class="field">
+        <label for="size">ขนาดไฟล์ดาวน์โหลด (px)</label>
+        <select id="size">
+          <option value="128">128 × 128 (เล็ก)</option>
+          <option value="256">256 × 256 (มาตรฐาน)</option>
+          <option value="512" selected>512 × 512 (คมชัด)</option>
+          <option value="1024">1024 × 1024 (สำหรับพิมพ์)</option>
+          <option value="2048">2048 × 2048 (ใหญ่พิเศษ)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="level">Error Correction (ความทนทานในการสแกน)</label>
+        <select id="level">
+          <option value="L">L — 7% (พื้นที่สะอาด)</option>
+          <option value="M">M — 15% (ทั่วไป)</option>
+          <option value="Q">Q — 25% (อาจมีรอยเลอะ)</option>
+          <option value="H" selected>H — 30% (ทนทานสุด / ใส่ logo)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="quietZone">Quiet Zone (ขอบขาวรอบ QR)</label>
+        <select id="quietZone">
+          <option value="0">0 — ไม่มีขอบ</option>
+          <option value="2">2 modules</option>
+          <option value="4" selected>4 modules (มาตรฐาน)</option>
+          <option value="6">6 modules</option>
+          <option value="8">8 modules (กว้าง)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px;">
+      <div class="field">
+        <label for="colorDark">สี QR</label>
+        <input type="color" id="colorDark" value="#000000" style="height:42px; padding:4px;" />
+      </div>
+      <div class="field">
+        <label for="colorLight">สีพื้นหลัง</label>
+        <input type="color" id="colorLight" value="#ffffff" style="height:42px; padding:4px;" />
+      </div>
+      <div class="field" style="display:flex; gap:20px; padding-top:22px; min-width:260px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="checkbox" id="useFrame" style="width:18px; height:18px; margin:0;" />
+          <label for="useFrame" style="margin:0; font-weight:500; cursor:pointer;">แสดงกรอบ</label>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="checkbox" id="useLabel" style="width:18px; height:18px; margin:0;" />
+          <label for="useLabel" style="margin:0; font-weight:500; cursor:pointer;">แสดงชื่อใต้ QR</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions">
+    <button class="btn-primary" id="btnGenerate">Generate All</button>
+    <span style="flex:1;"></span>
+    <label for="dlFormat" style="margin:0; font-weight:500;">Download All format:</label>
+    <select id="dlFormat" style="width:auto;">
+      <option value="png">PNG</option>
+      <option value="svg">SVG</option>
+      <option value="both">PNG + SVG</option>
+    </select>
+    <button class="btn-secondary" id="btnDownloadAll" disabled>Download All (.zip)</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div id="qrContainer">
+    <div class="empty-state">
+      <div class="icon">▦</div>
+      <div>ใส่ URL ด้านบน แล้วกด Generate All</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var ErrorLevel = {
+    L: QRCode.CorrectLevel.L,
+    M: QRCode.CorrectLevel.M,
+    Q: QRCode.CorrectLevel.Q,
+    H: QRCode.CorrectLevel.H
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var generatedItems = [];  // { name, url, filename, matrix, moduleCount, ok, error }
+
+  // ---------- Utilities ----------
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escapeXml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  }
+
+  function sanitizeFilename(s) {
+    return s
+      .replace(/^https?:\/\//i, '')
+      .replace(/[^a-zA-Z0-9ก-๙._-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .substring(0, 80) || 'qr';
+  }
+
+  function debounce(fn, delay) {
+    var t;
+    return function () {
+      var args = arguments, ctx = this;
+      clearTimeout(t);
+      t = setTimeout(function () { fn.apply(ctx, args); }, delay);
+    };
+  }
+
+  // ---------- Parsing ----------
+
+  function parseCSVLine(line) {
+    var fields = [];
+    var current = '';
+    var inQuotes = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (line[i+1] === '"') { current += '"'; i++; }
+          else inQuotes = false;
+        } else current += c;
+      } else {
+        if (c === ',') { fields.push(current); current = ''; }
+        else if (c === '"') inQuotes = true;
+        else current += c;
+      }
+    }
+    fields.push(current);
+    return fields;
+  }
+
+  function parseLine(line) {
+    var trimmed = line.trim();
+    if (!trimmed) return null;
+
+    // Skip obvious header rows
+    if (/^\s*(name|ชื่อ)\s*[,|]\s*(url|link|ลิงก์)\s*$/i.test(trimmed)) return null;
+
+    // Pipe separator: "name | url"
+    if (trimmed.indexOf('|') !== -1) {
+      var pipeIdx = trimmed.indexOf('|');
+      var name = trimmed.substring(0, pipeIdx).trim();
+      var url = trimmed.substring(pipeIdx + 1).trim();
+      if (url) return { name: name, url: url };
+    }
+
+    // CSV-like: comma separator (URLs rarely contain commas)
+    if (trimmed.indexOf(',') !== -1 && !/^https?:\/\/[^\s,]+$/i.test(trimmed)) {
+      var fields = parseCSVLine(trimmed);
+      if (fields.length >= 2) {
+        var nm = fields[0].trim();
+        var u = fields.slice(1).join(',').trim();
+        if (u) return { name: nm, url: u };
+      }
+    }
+
+    // Plain URL / text
+    return { name: '', url: trimmed };
+  }
+
+  function parseItems() {
+    var raw = $('urls').value || '';
+    var lines = raw.split(/\r?\n/);
+    var items = [];
+    for (var i = 0; i < lines.length; i++) {
+      var item = parseLine(lines[i]);
+      if (item) items.push(item);
+    }
+    return items;
+  }
+
+  // ---------- URL validation ----------
+
+  function validateUrl(text) {
+    var t = String(text || '').trim();
+    if (!t) return { level: 'error', message: 'ว่าง' };
+
+    if (/^(javascript|vbscript|data|file):/i.test(t)) {
+      return { level: 'error', message: 'Scheme อันตราย (' + t.split(':')[0] + ':) ไม่แนะนำให้สร้าง QR' };
+    }
+
+    // Too long (rough threshold — actual capacity depends on EC level)
+    if (t.length > 2000) {
+      return { level: 'warn', message: 'ยาวมาก อาจเกินความจุ QR' };
+    }
+
+    // Looks like URL but malformed
+    if (/^https?:\/\//i.test(t)) {
+      try { new URL(t); return { level: 'ok' }; }
+      catch (e) { return { level: 'warn', message: 'URL อาจไม่ถูกต้อง' }; }
+    }
+
+    // Looks domain-like but missing scheme
+    if (/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(\/|$)/i.test(t) && !/\s/.test(t)) {
+      return { level: 'warn', message: 'ไม่มี http(s):// — จะบันทึกเป็นข้อความธรรมดา' };
+    }
+
+    return { level: 'ok' };
+  }
+
+  // ---------- Preview ----------
+
+  function renderPreview() {
+    var items = parseItems();
+    var container = $('preview');
+    $('previewCount').textContent = items.length ? '(' + items.length + ' รายการ)' : '';
+
+    if (!items.length) {
+      container.innerHTML = '<div class="empty-small">ยังไม่มีรายการ — พิมพ์หรือ import ด้านบน</div>';
+      return;
+    }
+
+    var html = '';
+    items.forEach(function (item, idx) {
+      var v = validateUrl(item.url);
+      var badge = '';
+      if (v.level === 'error') badge = '<span class="badge badge-error" title="' + escapeHtml(v.message) + '">!</span>';
+      else if (v.level === 'warn') badge = '<span class="badge badge-warn" title="' + escapeHtml(v.message) + '">⚠</span>';
+
+      var nameHtml = item.name
+        ? '<span class="preview-name">' + escapeHtml(item.name) + '</span>'
+        : '<span class="preview-name muted">(ไม่มีชื่อ)</span>';
+
+      html +=
+        '<div class="preview-row">' +
+          '<div class="preview-main">' +
+            badge +
+            nameHtml +
+            '<span class="preview-url">' + escapeHtml(item.url) + '</span>' +
+          '</div>' +
+          '<button class="btn-icon" data-preview-idx="' + idx + '" title="ลบรายการนี้">×</button>' +
+        '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function deletePreviewItem(idx) {
+    var lines = ($('urls').value || '').split(/\r?\n/);
+    var count = -1;
+    for (var i = 0; i < lines.length; i++) {
+      if (parseLine(lines[i])) {
+        count++;
+        if (count === idx) { lines.splice(i, 1); break; }
+      }
+    }
+    $('urls').value = lines.join('\n').replace(/\n{3,}/g, '\n\n');
+    renderPreview();
+  }
+
+  // ---------- QR matrix (using qrcode.js) ----------
+
+  function getQRMatrix(text, errorLevel) {
+    var holder = document.createElement('div');
+    holder.style.position = 'absolute';
+    holder.style.left = '-9999px';
+    document.body.appendChild(holder);
+    try {
+      var qr = new QRCode(holder, {
+        text: text,
+        width: 64, height: 64,  // not used — we only extract matrix
+        correctLevel: ErrorLevel[errorLevel] || ErrorLevel.H
+      });
+      var model = qr._oQRCode;
+      if (!model || !model.moduleCount) throw new Error('ไม่สามารถสร้าง QR matrix ได้');
+      var n = model.moduleCount;
+      var matrix = new Array(n);
+      for (var r = 0; r < n; r++) {
+        matrix[r] = new Array(n);
+        for (var c = 0; c < n; c++) matrix[r][c] = !!model.isDark(r, c);
+      }
+      return { matrix: matrix, moduleCount: n };
+    } finally {
+      if (holder.parentNode) holder.parentNode.removeChild(holder);
+    }
+  }
+
+  // ---------- Rendering ----------
+
+  function renderQRCanvas(opts) {
+    /*
+      opts: matrix, moduleCount, targetSize, quietZone, colorDark, colorLight, frame, showLabel, label
+    */
+    var totalModules = opts.moduleCount + opts.quietZone * 2;
+    var modulePixel = opts.targetSize / totalModules;
+    var qrPixelSize = modulePixel * totalModules;
+
+    var showLabel = !!(opts.showLabel && opts.label);
+    var frameBorder = opts.frame
+      ? Math.max(6, Math.round(modulePixel * 2))
+      : (showLabel ? Math.max(4, Math.round(modulePixel * 0.5)) : 0);
+    var labelFontSize = showLabel ? Math.max(14, Math.round(modulePixel * 2.4)) : 0;
+    var labelAreaHeight = labelFontSize ? Math.round(labelFontSize * 2) : 0;
+
+    var canvasWidth = Math.round(qrPixelSize + frameBorder * 2);
+    var canvasHeight = Math.round(qrPixelSize + frameBorder * 2 + labelAreaHeight);
+
+    var canvas = document.createElement('canvas');
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+    var ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = opts.colorLight;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    if (opts.frame) {
+      ctx.strokeStyle = opts.colorDark;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, canvasWidth - 2, canvasHeight - 2);
+    }
+
+    ctx.fillStyle = opts.colorDark;
+    var offX = frameBorder + opts.quietZone * modulePixel;
+    var offY = frameBorder + opts.quietZone * modulePixel;
+    for (var r = 0; r < opts.moduleCount; r++) {
+      for (var c = 0; c < opts.moduleCount; c++) {
+        if (opts.matrix[r][c]) {
+          ctx.fillRect(
+            offX + c * modulePixel,
+            offY + r * modulePixel,
+            modulePixel + 0.6,
+            modulePixel + 0.6
+          );
+        }
+      }
+    }
+
+    if (showLabel) {
+      ctx.fillStyle = opts.colorDark;
+      ctx.font = '600 ' + labelFontSize + 'px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans Thai", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      var maxWidth = canvasWidth - frameBorder * 2 - 16;
+      var text = opts.label;
+      if (ctx.measureText(text).width > maxWidth) {
+        while (text.length > 1 && ctx.measureText(text + '…').width > maxWidth) {
+          text = text.slice(0, -1);
+        }
+        text = text + '…';
+      }
+      ctx.fillText(text, canvasWidth / 2, qrPixelSize + frameBorder + labelAreaHeight / 2);
+    }
+
+    return canvas;
+  }
+
+  function renderQRSVG(opts) {
+    var totalModules = opts.moduleCount + opts.quietZone * 2;
+    var showLabel = !!(opts.showLabel && opts.label);
+    // frameBorder / labelFontSize in "module units" (1 unit = 1 QR module)
+    // Constants match the PNG renderer proportions (~2 modules frame, 2.4 modules font)
+    var frameBorder = opts.frame ? 2 : (showLabel ? 0.5 : 0);
+    var labelFontSize = showLabel ? 2.4 : 0;
+    var labelAreaHeight = labelFontSize ? labelFontSize * 2 : 0;
+
+    var viewWidth = totalModules + frameBorder * 2;
+    var viewHeight = totalModules + frameBorder * 2 + labelAreaHeight;
+
+    // Scale so that the QR + quietZone area (totalModules wide) equals targetSize px.
+    // This keeps SVG and PNG visually identical: QR area is always targetSize,
+    // frame/label are extra space outside. (Was a bug: previously the full SVG
+    // was forced to targetSize, shrinking the QR when frame/label were enabled.)
+    var scale = opts.targetSize / totalModules;
+    var outWidth = Math.round(viewWidth * scale);
+    var outHeight = Math.round(viewHeight * scale);
+
+    var svg = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    svg += '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' +
+           viewWidth.toFixed(3) + ' ' + viewHeight.toFixed(3) +
+           '" width="' + outWidth + '" height="' + outHeight + '" shape-rendering="crispEdges">';
+    svg += '<rect width="100%" height="100%" fill="' + escapeXml(opts.colorLight) + '"/>';
+
+    if (opts.frame) {
+      // Stroke width ~= 2px equivalent regardless of output size
+      var strokeWidth = 2 / scale;
+      var half = strokeWidth / 2;
+      svg += '<rect x="' + half.toFixed(3) + '" y="' + half.toFixed(3) +
+             '" width="' + (viewWidth - strokeWidth).toFixed(3) +
+             '" height="' + (viewHeight - strokeWidth).toFixed(3) +
+             '" fill="none" stroke="' + escapeXml(opts.colorDark) +
+             '" stroke-width="' + strokeWidth.toFixed(3) + '"/>';
+    }
+
+    var offset = frameBorder + opts.quietZone;
+    var path = '';
+    for (var r = 0; r < opts.moduleCount; r++) {
+      for (var c = 0; c < opts.moduleCount; c++) {
+        if (opts.matrix[r][c]) {
+          path += 'M' + (offset + c) + ' ' + (offset + r) + 'h1v1h-1z';
+        }
+      }
+    }
+    svg += '<path d="' + path + '" fill="' + escapeXml(opts.colorDark) + '"/>';
+
+    if (showLabel) {
+      var labelY = totalModules + frameBorder + labelAreaHeight / 2;
+      // Rough truncation (SVG has no measureText — estimate avg char width)
+      var maxChars = Math.max(6, Math.floor((viewWidth - frameBorder * 2 - 1) / (labelFontSize * 0.55)));
+      var labelText = opts.label.length > maxChars ? opts.label.slice(0, maxChars - 1) + '…' : opts.label;
+      svg += '<text x="' + (viewWidth / 2).toFixed(3) + '" y="' + labelY.toFixed(3) +
+             '" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Noto Sans Thai,sans-serif" font-size="' + labelFontSize.toFixed(2) +
+             '" font-weight="600" fill="' + escapeXml(opts.colorDark) +
+             '" text-anchor="middle" dominant-baseline="central">' + escapeXml(labelText) + '</text>';
+    }
+
+    svg += '</svg>';
+    return svg;
+  }
+
+  // ---------- Current settings snapshot ----------
+
+  function getRenderOpts() {
+    return {
+      targetSize: parseInt($('size').value, 10) || 512,
+      quietZone: parseInt($('quietZone').value, 10) || 0,
+      colorDark: $('colorDark').value || '#000000',
+      colorLight: $('colorLight').value || '#ffffff',
+      frame: $('useFrame').checked,
+      showLabel: $('useLabel').checked,
+      errorLevel: $('level').value || 'H'
+    };
+  }
+
+  function entryLabel(entry) {
+    return entry.name || entry.url;
+  }
+
+  function renderForEntry(entry, targetSize) {
+    var opts = getRenderOpts();
+    return {
+      matrix: entry.matrix,
+      moduleCount: entry.moduleCount,
+      targetSize: targetSize || opts.targetSize,
+      quietZone: opts.quietZone,
+      colorDark: opts.colorDark,
+      colorLight: opts.colorLight,
+      frame: opts.frame,
+      showLabel: opts.showLabel,
+      label: entryLabel(entry)
+    };
+  }
+
+  // ---------- Results rendering ----------
+
+  function renderResults() {
+    var container = $('qrContainer');
+    container.innerHTML = '';
+
+    if (!generatedItems.length) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">▦</div><div>ยังไม่มี QR Code</div></div>';
+      return;
+    }
+
+    var grid = document.createElement('div');
+    grid.className = 'qr-grid';
+
+    generatedItems.forEach(function (entry, idx) {
+      var card = document.createElement('div');
+      card.className = 'qr-item';
+      card.dataset.idx = String(idx);
+
+      var btnDelete = document.createElement('button');
+      btnDelete.className = 'btn-icon btn-delete';
+      btnDelete.innerHTML = '×';
+      btnDelete.title = 'ลบการ์ดนี้';
+      btnDelete.addEventListener('click', function () { removeResult(idx); });
+      card.appendChild(btnDelete);
+
+      if (!entry.ok) {
+        var err = document.createElement('div');
+        err.className = 'qr-error';
+        err.innerHTML = '<strong>สร้างไม่สำเร็จ</strong><br/>' + escapeHtml(entry.url) + '<br/><br/>' + escapeHtml(entry.error);
+        card.appendChild(err);
+        grid.appendChild(card);
+        return;
+      }
+
+      var wrap = document.createElement('div');
+      wrap.className = 'qr-canvas-wrap';
+      var previewCanvas = renderQRCanvas(renderForEntry(entry, 200));
+      wrap.appendChild(previewCanvas);
+      card.appendChild(wrap);
+
+      var filenameInput = document.createElement('input');
+      filenameInput.type = 'text';
+      filenameInput.className = 'qr-filename';
+      filenameInput.value = entry.filename;
+      filenameInput.placeholder = 'ชื่อไฟล์ (ไม่ต้องใส่นามสกุล)';
+      filenameInput.addEventListener('input', function () {
+        entry.filename = sanitizeFilename(filenameInput.value || 'qr');
+      });
+      filenameInput.addEventListener('blur', function () {
+        filenameInput.value = entry.filename;
+      });
+      card.appendChild(filenameInput);
+
+      var urlDiv = document.createElement('div');
+      urlDiv.className = 'qr-url';
+      urlDiv.textContent = entry.url;
+      urlDiv.title = entry.url;
+      card.appendChild(urlDiv);
+
+      var btnGroup = document.createElement('div');
+      btnGroup.className = 'btn-group';
+
+      var btnPNG = document.createElement('button');
+      btnPNG.className = 'btn-secondary btn-small';
+      btnPNG.textContent = 'PNG';
+      btnPNG.addEventListener('click', function () { downloadPNG(entry); });
+
+      var btnSVG = document.createElement('button');
+      btnSVG.className = 'btn-secondary btn-small';
+      btnSVG.textContent = 'SVG';
+      btnSVG.addEventListener('click', function () { downloadSVG(entry); });
+
+      var btnCopy = document.createElement('button');
+      btnCopy.className = 'btn-secondary btn-small';
+      btnCopy.textContent = 'Copy';
+      btnCopy.addEventListener('click', function () { copyImage(entry, btnCopy); });
+
+      btnGroup.appendChild(btnPNG);
+      btnGroup.appendChild(btnSVG);
+      btnGroup.appendChild(btnCopy);
+      card.appendChild(btnGroup);
+
+      grid.appendChild(card);
+    });
+
+    container.appendChild(grid);
+  }
+
+  function rerenderAllPreviews() {
+    // Re-render canvases inside existing cards when display settings change
+    if (!generatedItems.length) return;
+    renderResults();
+  }
+
+  function removeResult(idx) {
+    generatedItems.splice(idx, 1);
+    renderResults();
+    $('btnDownloadAll').disabled = generatedItems.length === 0;
+    updateStats();
+  }
+
+  function updateStats(extra) {
+    var opts = getRenderOpts();
+    var extras = [];
+    if (opts.frame) extras.push('มีกรอบ');
+    if (opts.showLabel) extras.push('มีชื่อใต้ QR');
+    var base = generatedItems.length + ' รายการ • ขนาด ' + opts.targetSize + 'px' +
+               ' • EC ' + opts.errorLevel + ' • Quiet ' + opts.quietZone +
+               (extras.length ? ' • ' + extras.join(' + ') : '');
+    $('stats').textContent = extra ? (extra + ' — ' + base) : base;
+  }
+
+  // ---------- Download handlers ----------
+
+  function triggerDownload(href, filename) {
+    var a = document.createElement('a');
+    a.href = href;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  function downloadPNG(entry) {
+    var canvas = renderQRCanvas(renderForEntry(entry));
+    canvas.toBlob(function (blob) {
+      var url = URL.createObjectURL(blob);
+      triggerDownload(url, entry.filename + '.png');
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }, 'image/png');
+  }
+
+  function downloadSVG(entry) {
+    var svg = renderQRSVG(renderForEntry(entry));
+    var blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    triggerDownload(url, entry.filename + '.svg');
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function copyImage(entry, btn) {
+    if (!navigator.clipboard || !window.ClipboardItem) {
+      alert('เบราว์เซอร์ไม่รองรับการ copy ภาพ — ใช้ปุ่ม PNG/SVG แทน');
+      return;
+    }
+    var canvas = renderQRCanvas(renderForEntry(entry));
+    canvas.toBlob(function (blob) {
+      var original = btn.textContent;
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(function () {
+        btn.textContent = '✓';
+        setTimeout(function () { btn.textContent = original; }, 1500);
+      }).catch(function (e) {
+        alert('Copy ไม่สำเร็จ: ' + (e.message || e));
+      });
+    }, 'image/png');
+  }
+
+  function canvasToBlob(canvas) {
+    return new Promise(function (resolve) { canvas.toBlob(resolve, 'image/png'); });
+  }
+
+  function handleDownloadAll() {
+    if (!generatedItems.length) return;
+    if (typeof JSZip === 'undefined') {
+      // fallback: sequential individual downloads
+      generatedItems.forEach(function (entry, i) {
+        setTimeout(function () { downloadPNG(entry); }, i * 300);
+      });
+      return;
+    }
+
+    var format = $('dlFormat').value;
+    var zip = new JSZip();
+    var btn = $('btnDownloadAll');
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Packaging...';
+
+    // Build blobs
+    var tasks = [];
+    var usedNames = {};
+    generatedItems.forEach(function (entry) {
+      var base = entry.filename || 'qr';
+      var suffix = 1;
+      while (usedNames[base]) { suffix++; base = entry.filename + '_' + suffix; }
+      usedNames[base] = true;
+
+      if (format === 'png' || format === 'both') {
+        var canvas = renderQRCanvas(renderForEntry(entry));
+        tasks.push(canvasToBlob(canvas).then(function (blob) {
+          zip.file(base + '.png', blob);
+        }));
+      }
+      if (format === 'svg' || format === 'both') {
+        var svg = renderQRSVG(renderForEntry(entry));
+        zip.file(base + '.svg', svg);
+      }
+    });
+
+    Promise.all(tasks).then(function () {
+      return zip.generateAsync({ type: 'blob' });
+    }).then(function (blob) {
+      var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      var url = URL.createObjectURL(blob);
+      triggerDownload(url, 'qrcodes_' + ts + '.zip');
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      btn.disabled = false;
+      btn.textContent = original;
+    }).catch(function (e) {
+      alert('สร้าง ZIP ไม่สำเร็จ: ' + (e.message || e));
+      btn.disabled = false;
+      btn.textContent = original;
+    });
+  }
+
+  // ---------- Generate ----------
+
+  function handleGenerate() {
+    var items = parseItems();
+    if (!items.length) {
+      alert('ยังไม่มีรายการ — ใส่ URL อย่างน้อย 1 รายการก่อน');
+      $('urls').focus();
+      return;
+    }
+
+    // Check for errors (javascript: etc) before generating
+    var errors = [];
+    items.forEach(function (it, i) {
+      var v = validateUrl(it.url);
+      if (v.level === 'error') errors.push('บรรทัด ' + (i + 1) + ': ' + v.message);
+    });
+    if (errors.length) {
+      if (!confirm('พบ ' + errors.length + ' รายการน่าสงสัย:\n\n' + errors.join('\n') + '\n\nดำเนินการต่อไหม?')) return;
+    }
+
+    var opts = getRenderOpts();
+    generatedItems = [];
+    var usedFilenames = {};
+    var successCount = 0;
+
+    items.forEach(function (it) {
+      var entry = { name: it.name, url: it.url };
+      try {
+        var m = getQRMatrix(it.url, opts.errorLevel);
+        entry.ok = true;
+        entry.matrix = m.matrix;
+        entry.moduleCount = m.moduleCount;
+      } catch (e) {
+        entry.ok = false;
+        entry.error = e.message || String(e);
+      }
+
+      // Filename: prefer name, fallback to URL
+      var base = sanitizeFilename(entry.name || entry.url);
+      var filename = base;
+      var n = 1;
+      while (usedFilenames[filename]) { n++; filename = base + '_' + n; }
+      usedFilenames[filename] = true;
+      entry.filename = filename;
+
+      if (entry.ok) successCount++;
+      generatedItems.push(entry);
+    });
+
+    renderResults();
+    updateStats('สร้าง ' + successCount + '/' + items.length);
+    $('btnDownloadAll').disabled = successCount === 0;
+  }
+
+  // ---------- CSV import (file) ----------
+
+  function handleImportFile(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var text = reader.result || '';
+      // Basic CSV → textarea: convert comma-separated lines to "name | url"
+      var lines = text.split(/\r?\n/);
+      var out = [];
+      lines.forEach(function (line) {
+        if (!line.trim()) return;
+        // skip header
+        if (/^\s*(name|ชื่อ)\s*,\s*(url|link|ลิงก์)\s*$/i.test(line.trim())) return;
+        var fields = parseCSVLine(line);
+        if (fields.length === 1) out.push(fields[0].trim());
+        else {
+          var nm = fields[0].trim();
+          var u = fields.slice(1).join(',').trim();
+          out.push(nm ? (nm + ' | ' + u) : u);
+        }
+      });
+      var existing = $('urls').value.trim();
+      $('urls').value = (existing ? existing + '\n' : '') + out.join('\n');
+      renderPreview();
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- Event wiring ----------
+
+  var debouncedPreview = debounce(renderPreview, 120);
+  $('urls').addEventListener('input', debouncedPreview);
+
+  $('preview').addEventListener('click', function (e) {
+    var btn = e.target.closest ? e.target.closest('[data-preview-idx]') : null;
+    if (!btn) return;
+    deletePreviewItem(parseInt(btn.getAttribute('data-preview-idx'), 10));
+  });
+
+  $('btnGenerate').addEventListener('click', handleGenerate);
+  $('btnClearAll').addEventListener('click', function () {
+    if (!$('urls').value.trim() && !generatedItems.length) return;
+    if (confirm('ล้างทุกอย่าง (input + ผลลัพธ์) ?')) {
+      $('urls').value = '';
+      generatedItems = [];
+      renderPreview();
+      renderResults();
+      $('stats').textContent = '';
+      $('btnDownloadAll').disabled = true;
+    }
+  });
+  $('btnDownloadAll').addEventListener('click', handleDownloadAll);
+
+  $('btnImportFile').addEventListener('click', function () { $('fileInput').click(); });
+  $('fileInput').addEventListener('change', function (e) {
+    var f = e.target.files[0];
+    if (f) handleImportFile(f);
+    e.target.value = '';
+  });
+
+  $('btnSample').addEventListener('click', function () {
+    var sample =
+      'Name 1 | https://example1.com\n' +
+      'Name 2 | https://example2.com\n' +
+      'Name 3 | https://example3.com';
+    $('urls').value = sample;
+    renderPreview();
+  });
+
+  // Re-render previews when display settings change
+  var displaySettingIds = ['quietZone', 'colorDark', 'colorLight', 'useFrame', 'useLabel', 'size'];
+  displaySettingIds.forEach(function (id) {
+    $(id).addEventListener('change', rerenderAllPreviews);
+    $(id).addEventListener('input', rerenderAllPreviews);
+  });
+
+  // Error level changes require re-generate (matrix depends on EC level) — stats-only update
+  $('level').addEventListener('change', function () {
+    if (generatedItems.length) {
+      updateStats('⚠ เปลี่ยน Error Correction — กด Generate All เพื่ออัพเดท');
+    }
+  });
+
+  // Ctrl/Cmd + Enter in textarea → generate
+  $('urls').addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleGenerate();
+    }
+  });
+
+  // Init
+  renderPreview();
+})();
+</script>
+</body>
+</html>
