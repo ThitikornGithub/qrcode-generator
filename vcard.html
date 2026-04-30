@@ -341,7 +341,49 @@
           </div>
         </div>
 
-        <div class="tip">
+        <!-- Logo controls -->
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="checkbox" id="useLogo" style="width:16px; height:16px;" />
+            <label for="useLogo" style="margin:0; font-weight:500; cursor:pointer; font-size:13px;">ใส่โลโก้ตรงกลาง QR</label>
+          </div>
+          <div id="logoPanel" style="display:none; margin-top:10px;">
+            <div style="display:flex; gap:10px; align-items:center;">
+              <div id="logoPreview" style="width:48px; height:48px; flex-shrink:0; border-radius:8px; border:1px dashed var(--border); background:#fafbfc; display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--muted); font-size:10px; text-align:center;">
+                <span>โลโก้</span>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+                <input type="file" id="logoInput" accept="image/*" style="display:none;" />
+                <div style="display:flex; gap:6px;">
+                  <button type="button" class="btn-secondary btn-small" id="btnPickLogo">เลือกโลโก้</button>
+                  <button type="button" class="btn-secondary btn-small" id="btnRemoveLogo" disabled>เอาออก</button>
+                </div>
+              </div>
+            </div>
+            <div class="row c2" style="margin-top:10px;">
+              <div>
+                <label for="logoSize" style="font-size:11px;">ขนาด</label>
+                <select id="logoSize" style="padding:6px 8px; font-size:12px;">
+                  <option value="18">18% (เล็ก)</option>
+                  <option value="22" selected>22% (ปานกลาง)</option>
+                  <option value="25">25% (ใหญ่)</option>
+                </select>
+              </div>
+              <div>
+                <label for="logoShape" style="font-size:11px;">รูปทรง</label>
+                <select id="logoShape" style="padding:6px 8px; font-size:12px;">
+                  <option value="circle" selected>วงกลม</option>
+                  <option value="rounded">สี่เหลี่ยมมุมมน</option>
+                </select>
+              </div>
+            </div>
+            <div class="tip warn" id="logoEcWarn" style="display:none; margin-top:8px;">
+              ⚠️ ใส่โลโก้แนะนำ EC = H เพื่อป้องกัน scan ไม่ติด — กดเปลี่ยน EC ที่ dropdown ด้านบนได้
+            </div>
+          </div>
+        </div>
+
+        <div class="tip" style="margin-top:12px;">
           💡 <strong>Tips:</strong> ถ้า QR ดูหนาแน่นจนน่ากลัว — ลดข้อมูล หรือเปลี่ยน EC เป็น L และขอให้พิมพ์ใหญ่หน่อย (อย่างน้อย 2×2 ซม.) สแกนก่อนสั่งพิมพ์จริงเสมอ
         </div>
       </div>
@@ -484,6 +526,165 @@
     }
   }
 
+  // ---------- Logo state ----------
+
+  var logoState = {
+    enabled: false,
+    image: null,        // HTMLImageElement
+    dataUrl: ''         // for SVG embedding
+  };
+
+  function processLogoFile(file) {
+    if (!file) return;
+    if (!file.type.match(/^image\//)) {
+      alert('กรุณาเลือกไฟล์รูปภาพ');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        logoState.image = img;
+        logoState.dataUrl = e.target.result;
+        var prev = $('logoPreview');
+        prev.innerHTML = '';
+        var p = document.createElement('img');
+        p.src = e.target.result;
+        p.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        prev.appendChild(p);
+        $('btnRemoveLogo').disabled = false;
+        // Auto-set EC to H, but allow user to change
+        if ($('ecLevel').value !== 'H') {
+          $('ecLevel').value = 'H';
+        }
+        updateLogoEcWarn();
+        update();
+      };
+      img.onerror = function () { alert('โหลดรูปไม่สำเร็จ'); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { alert('อ่านไฟล์ไม่สำเร็จ'); };
+    reader.readAsDataURL(file);
+  }
+
+  function removeLogo() {
+    logoState.image = null;
+    logoState.dataUrl = '';
+    $('logoPreview').innerHTML = '<span>โลโก้</span>';
+    $('logoInput').value = '';
+    $('btnRemoveLogo').disabled = true;
+    update();
+  }
+
+  function applyLogoToggle() {
+    logoState.enabled = $('useLogo').checked;
+    $('logoPanel').style.display = logoState.enabled ? '' : 'none';
+    if (logoState.enabled && $('ecLevel').value !== 'H') {
+      $('ecLevel').value = 'H';
+    }
+    updateLogoEcWarn();
+    update();
+  }
+
+  function updateLogoEcWarn() {
+    var show = logoState.enabled && logoState.image && $('ecLevel').value !== 'H';
+    $('logoEcWarn').style.display = show ? 'block' : 'none';
+  }
+
+  function getLogoOpts() {
+    return {
+      enabled: logoState.enabled && !!logoState.image,
+      image: logoState.image,
+      dataUrl: logoState.dataUrl,
+      sizePercent: parseInt($('logoSize').value, 10) || 22,
+      shape: $('logoShape').value || 'circle'
+    };
+  }
+
+  // ---------- Logo drawing helpers ----------
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawLogoOnCanvas(ctx, logo, qrAreaSize, qrOffsetX, qrOffsetY) {
+    if (!logo.enabled) return;
+    var size = qrAreaSize * (logo.sizePercent / 100);
+    var pad = size * 0.06;
+    var cx = qrOffsetX + qrAreaSize / 2;
+    var cy = qrOffsetY + qrAreaSize / 2;
+    var x = cx - size / 2;
+    var y = cy - size / 2;
+
+    ctx.save();
+    // White background
+    ctx.fillStyle = '#ffffff';
+    if (logo.shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(cx, cy, size / 2 + pad, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      var bgR = (size + pad * 2) * 0.18;
+      roundRectPath(ctx, x - pad, y - pad, size + pad * 2, size + pad * 2, bgR);
+      ctx.fill();
+    }
+    // Clip and draw image (cover-fit)
+    if (logo.shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+      ctx.clip();
+    } else {
+      roundRectPath(ctx, x, y, size, size, size * 0.16);
+      ctx.clip();
+    }
+    var img = logo.image;
+    var dx = x, dy = y, dw = size, dh = size;
+    if (img.width !== img.height) {
+      var imgRatio = img.width / img.height;
+      if (imgRatio > 1) { dw = size * imgRatio; dx = x - (dw - size) / 2; }
+      else { dh = size / imgRatio; dy = y - (dh - size) / 2; }
+    }
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+  }
+
+  function buildLogoSVG(logo, qrAreaSize, qrOffset) {
+    if (!logo.enabled || !logo.dataUrl) return '';
+    var size = qrAreaSize * (logo.sizePercent / 100);
+    var pad = size * 0.06;
+    var cx = qrOffset + qrAreaSize / 2;
+    var cy = qrOffset + qrAreaSize / 2;
+    var x = cx - size / 2;
+    var y = cy - size / 2;
+    var clipId = 'logoClip_' + Math.floor(Math.random() * 1e9).toString(36);
+    var bg, clipShape;
+    if (logo.shape === 'circle') {
+      bg = '<circle cx="' + cx.toFixed(3) + '" cy="' + cy.toFixed(3) + '" r="' + (size / 2 + pad).toFixed(3) + '" fill="#ffffff"/>';
+      clipShape = '<circle cx="' + cx.toFixed(3) + '" cy="' + cy.toFixed(3) + '" r="' + (size / 2).toFixed(3) + '"/>';
+    } else {
+      var bgR = (size + pad * 2) * 0.18;
+      bg = '<rect x="' + (x - pad).toFixed(3) + '" y="' + (y - pad).toFixed(3) +
+           '" width="' + (size + pad * 2).toFixed(3) + '" height="' + (size + pad * 2).toFixed(3) +
+           '" rx="' + bgR.toFixed(3) + '" fill="#ffffff"/>';
+      clipShape = '<rect x="' + x.toFixed(3) + '" y="' + y.toFixed(3) +
+                  '" width="' + size.toFixed(3) + '" height="' + size.toFixed(3) +
+                  '" rx="' + (size * 0.16).toFixed(3) + '"/>';
+    }
+    return '<defs><clipPath id="' + clipId + '">' + clipShape + '</clipPath></defs>' +
+           bg +
+           '<image href="' + logo.dataUrl + '" x="' + x.toFixed(3) + '" y="' + y.toFixed(3) +
+           '" width="' + size.toFixed(3) + '" height="' + size.toFixed(3) +
+           '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice"/>';
+  }
+
   // ---------- Rendering ----------
 
   function renderQRCanvas(opts) {
@@ -523,6 +724,11 @@
         }
       }
     }
+
+    // Draw logo (centered over the QR area, on top of modules)
+    if (opts.logo && opts.logo.enabled) {
+      drawLogoOnCanvas(ctx, opts.logo, qrPixelSize, frameBorder, frameBorder);
+    }
     return canvas;
   }
 
@@ -559,6 +765,12 @@
       }
     }
     svg += '<path d="' + path + '" fill="#000000"/>';
+
+    // Logo (in module units — viewBox is in module units)
+    if (opts.logo && opts.logo.enabled) {
+      var qrAreaModules = opts.moduleCount + opts.quietZone * 2;
+      svg += buildLogoSVG(opts.logo, qrAreaModules, frameBorder);
+    }
     svg += '</svg>';
     return svg;
   }
@@ -571,7 +783,8 @@
       moduleCount: currentModuleCount,
       targetSize: targetSize || parseInt($('qrSize').value, 10) || 512,
       quietZone: parseInt($('quietZone').value, 10) || 4,
-      frame: $('useFrame').checked
+      frame: $('useFrame').checked,
+      logo: getLogoOpts()
     };
   }
 
@@ -715,6 +928,18 @@
     $(id).addEventListener('input', debouncedUpdate);
   });
   ['ecLevel', 'qrSize', 'quietZone', 'useFrame'].forEach(function (id) {
+    $(id).addEventListener('change', update);
+  });
+  $('ecLevel').addEventListener('change', updateLogoEcWarn);
+
+  // Logo handlers
+  $('useLogo').addEventListener('change', applyLogoToggle);
+  $('btnPickLogo').addEventListener('click', function () { $('logoInput').click(); });
+  $('logoInput').addEventListener('change', function (e) {
+    if (e.target.files && e.target.files[0]) processLogoFile(e.target.files[0]);
+  });
+  $('btnRemoveLogo').addEventListener('click', removeLogo);
+  ['logoSize', 'logoShape'].forEach(function (id) {
     $(id).addEventListener('change', update);
   });
 

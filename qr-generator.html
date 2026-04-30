@@ -308,6 +308,48 @@ Name 3 | https://example3.com"></textarea>
         </div>
       </div>
     </div>
+
+    <!-- Logo controls -->
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="checkbox" id="useLogo" style="width:18px; height:18px; margin:0;" />
+        <label for="useLogo" style="margin:0; font-weight:500; cursor:pointer;">ใส่โลโก้ตรงกลาง QR (ใช้กับทุกอันใน batch)</label>
+      </div>
+      <div id="logoPanel" style="display:none; margin-top:12px;">
+        <div class="row" style="align-items:flex-start;">
+          <div style="display:flex; gap:12px; align-items:center; min-width:280px;">
+            <div id="logoPreview" style="width:60px; height:60px; flex-shrink:0; border-radius:10px; border:1px dashed var(--border); background:#fafbfc; display:flex; align-items:center; justify-content:center; overflow:hidden; color:var(--muted); font-size:11px; text-align:center;">
+              <span>โลโก้</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <input type="file" id="logoInput" accept="image/*" style="display:none;" />
+              <div style="display:flex; gap:6px;">
+                <button type="button" class="btn-secondary btn-small" id="btnPickLogo">เลือกโลโก้</button>
+                <button type="button" class="btn-secondary btn-small" id="btnRemoveLogo" disabled>เอาออก</button>
+              </div>
+            </div>
+          </div>
+          <div class="field" style="min-width:140px;">
+            <label for="logoSize">ขนาด</label>
+            <select id="logoSize">
+              <option value="18">18% (เล็ก)</option>
+              <option value="22" selected>22% (ปานกลาง)</option>
+              <option value="25">25% (ใหญ่)</option>
+            </select>
+          </div>
+          <div class="field" style="min-width:140px;">
+            <label for="logoShape">รูปทรง</label>
+            <select id="logoShape">
+              <option value="circle" selected>วงกลม</option>
+              <option value="rounded">สี่เหลี่ยมมุมมน</option>
+            </select>
+          </div>
+        </div>
+        <div id="logoEcWarn" style="display:none; margin-top:10px; padding:10px 12px; background:var(--warn-soft); border-left:3px solid var(--warn); border-radius:6px; font-size:13px; color:#78350f;">
+          ⚠️ ใส่โลโก้แนะนำ EC = H เพื่อป้องกัน scan ไม่ติด — กดเปลี่ยน EC ที่ dropdown ด้านบนได้ และต้อง <strong>กด Generate All ใหม่</strong>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ACTIONS -->
@@ -547,6 +589,169 @@ Name 3 | https://example3.com"></textarea>
     }
   }
 
+  // ---------- Logo state ----------
+
+  var logoState = {
+    enabled: false,
+    image: null,
+    dataUrl: ''
+  };
+
+  function processLogoFile(file) {
+    if (!file) return;
+    if (!file.type.match(/^image\//)) {
+      alert('กรุณาเลือกไฟล์รูปภาพ');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var img = new Image();
+      img.onload = function () {
+        logoState.image = img;
+        logoState.dataUrl = e.target.result;
+        var prev = $('logoPreview');
+        prev.innerHTML = '';
+        var p = document.createElement('img');
+        p.src = e.target.result;
+        p.style.cssText = 'width:100%;height:100%;object-fit:cover;';
+        prev.appendChild(p);
+        $('btnRemoveLogo').disabled = false;
+        // Auto-set EC to H
+        if ($('level').value !== 'H') {
+          $('level').value = 'H';
+          if (generatedItems.length) {
+            updateStats('⚠ เปลี่ยน Error Correction เป็น H — กด Generate All เพื่ออัพเดท');
+          }
+        }
+        updateLogoEcWarn();
+        rerenderAllPreviews();
+      };
+      img.onerror = function () { alert('โหลดรูปไม่สำเร็จ'); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function () { alert('อ่านไฟล์ไม่สำเร็จ'); };
+    reader.readAsDataURL(file);
+  }
+
+  function removeLogo() {
+    logoState.image = null;
+    logoState.dataUrl = '';
+    $('logoPreview').innerHTML = '<span>โลโก้</span>';
+    $('logoInput').value = '';
+    $('btnRemoveLogo').disabled = true;
+    rerenderAllPreviews();
+  }
+
+  function applyLogoToggle() {
+    logoState.enabled = $('useLogo').checked;
+    $('logoPanel').style.display = logoState.enabled ? '' : 'none';
+    if (logoState.enabled && $('level').value !== 'H') {
+      $('level').value = 'H';
+      if (generatedItems.length) {
+        updateStats('⚠ เปลี่ยน Error Correction เป็น H — กด Generate All เพื่ออัพเดท');
+      }
+    }
+    updateLogoEcWarn();
+    rerenderAllPreviews();
+  }
+
+  function updateLogoEcWarn() {
+    var show = logoState.enabled && logoState.image && $('level').value !== 'H';
+    $('logoEcWarn').style.display = show ? 'block' : 'none';
+  }
+
+  function getLogoOpts() {
+    return {
+      enabled: logoState.enabled && !!logoState.image,
+      image: logoState.image,
+      dataUrl: logoState.dataUrl,
+      sizePercent: parseInt($('logoSize').value, 10) || 22,
+      shape: $('logoShape').value || 'circle'
+    };
+  }
+
+  // ---------- Logo drawing helpers ----------
+
+  function roundRectPath(ctx, x, y, w, h, r) {
+    if (r > w / 2) r = w / 2;
+    if (r > h / 2) r = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawLogoOnCanvas(ctx, logo, qrAreaSize, qrOffsetX, qrOffsetY) {
+    if (!logo.enabled) return;
+    var size = qrAreaSize * (logo.sizePercent / 100);
+    var pad = size * 0.06;
+    var cx = qrOffsetX + qrAreaSize / 2;
+    var cy = qrOffsetY + qrAreaSize / 2;
+    var x = cx - size / 2;
+    var y = cy - size / 2;
+
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    if (logo.shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(cx, cy, size / 2 + pad, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      var bgR = (size + pad * 2) * 0.18;
+      roundRectPath(ctx, x - pad, y - pad, size + pad * 2, size + pad * 2, bgR);
+      ctx.fill();
+    }
+    if (logo.shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+      ctx.clip();
+    } else {
+      roundRectPath(ctx, x, y, size, size, size * 0.16);
+      ctx.clip();
+    }
+    var img = logo.image;
+    var dx = x, dy = y, dw = size, dh = size;
+    if (img.width !== img.height) {
+      var imgRatio = img.width / img.height;
+      if (imgRatio > 1) { dw = size * imgRatio; dx = x - (dw - size) / 2; }
+      else { dh = size / imgRatio; dy = y - (dh - size) / 2; }
+    }
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+  }
+
+  function buildLogoSVG(logo, qrAreaSize, qrOffset) {
+    if (!logo.enabled || !logo.dataUrl) return '';
+    var size = qrAreaSize * (logo.sizePercent / 100);
+    var pad = size * 0.06;
+    var cx = qrOffset + qrAreaSize / 2;
+    var cy = qrOffset + qrAreaSize / 2;
+    var x = cx - size / 2;
+    var y = cy - size / 2;
+    var clipId = 'logoClip_' + Math.floor(Math.random() * 1e9).toString(36);
+    var bg, clipShape;
+    if (logo.shape === 'circle') {
+      bg = '<circle cx="' + cx.toFixed(3) + '" cy="' + cy.toFixed(3) + '" r="' + (size / 2 + pad).toFixed(3) + '" fill="#ffffff"/>';
+      clipShape = '<circle cx="' + cx.toFixed(3) + '" cy="' + cy.toFixed(3) + '" r="' + (size / 2).toFixed(3) + '"/>';
+    } else {
+      var bgR = (size + pad * 2) * 0.18;
+      bg = '<rect x="' + (x - pad).toFixed(3) + '" y="' + (y - pad).toFixed(3) +
+           '" width="' + (size + pad * 2).toFixed(3) + '" height="' + (size + pad * 2).toFixed(3) +
+           '" rx="' + bgR.toFixed(3) + '" fill="#ffffff"/>';
+      clipShape = '<rect x="' + x.toFixed(3) + '" y="' + y.toFixed(3) +
+                  '" width="' + size.toFixed(3) + '" height="' + size.toFixed(3) +
+                  '" rx="' + (size * 0.16).toFixed(3) + '"/>';
+    }
+    return '<defs><clipPath id="' + clipId + '">' + clipShape + '</clipPath></defs>' +
+           bg +
+           '<image href="' + logo.dataUrl + '" x="' + x.toFixed(3) + '" y="' + y.toFixed(3) +
+           '" width="' + size.toFixed(3) + '" height="' + size.toFixed(3) +
+           '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice"/>';
+  }
+
   // ---------- Rendering ----------
 
   function renderQRCanvas(opts) {
@@ -614,6 +819,11 @@ Name 3 | https://example3.com"></textarea>
       ctx.fillText(text, canvasWidth / 2, qrPixelSize + frameBorder + labelAreaHeight / 2);
     }
 
+    // Logo (centered over the QR area, on top of modules but below label)
+    if (opts.logo && opts.logo.enabled) {
+      drawLogoOnCanvas(ctx, opts.logo, qrPixelSize, frameBorder, frameBorder);
+    }
+
     return canvas;
   }
 
@@ -676,6 +886,12 @@ Name 3 | https://example3.com"></textarea>
              '" text-anchor="middle" dominant-baseline="central">' + escapeXml(labelText) + '</text>';
     }
 
+    // Logo (in module units — viewBox is in module units)
+    if (opts.logo && opts.logo.enabled) {
+      var qrAreaModules = totalModules; // moduleCount + quietZone*2
+      svg += buildLogoSVG(opts.logo, qrAreaModules, frameBorder);
+    }
+
     svg += '</svg>';
     return svg;
   }
@@ -709,7 +925,8 @@ Name 3 | https://example3.com"></textarea>
       colorLight: opts.colorLight,
       frame: opts.frame,
       showLabel: opts.showLabel,
-      label: entryLabel(entry)
+      label: entryLabel(entry),
+      logo: getLogoOpts()
     };
   }
 
@@ -1053,7 +1270,7 @@ Name 3 | https://example3.com"></textarea>
   });
 
   // Re-render previews when display settings change
-  var displaySettingIds = ['quietZone', 'colorDark', 'colorLight', 'useFrame', 'useLabel', 'size'];
+  var displaySettingIds = ['quietZone', 'colorDark', 'colorLight', 'useFrame', 'useLabel', 'size', 'logoSize', 'logoShape'];
   displaySettingIds.forEach(function (id) {
     $(id).addEventListener('change', rerenderAllPreviews);
     $(id).addEventListener('input', rerenderAllPreviews);
@@ -1061,10 +1278,20 @@ Name 3 | https://example3.com"></textarea>
 
   // Error level changes require re-generate (matrix depends on EC level) — stats-only update
   $('level').addEventListener('change', function () {
+    updateLogoEcWarn();
     if (generatedItems.length) {
       updateStats('⚠ เปลี่ยน Error Correction — กด Generate All เพื่ออัพเดท');
     }
   });
+
+  // Logo handlers
+  $('useLogo').addEventListener('change', applyLogoToggle);
+  $('btnPickLogo').addEventListener('click', function () { $('logoInput').click(); });
+  $('logoInput').addEventListener('change', function (e) {
+    if (e.target.files && e.target.files[0]) processLogoFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  $('btnRemoveLogo').addEventListener('click', removeLogo);
 
   // Ctrl/Cmd + Enter in textarea → generate
   $('urls').addEventListener('keydown', function (e) {
