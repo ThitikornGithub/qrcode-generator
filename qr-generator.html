@@ -462,6 +462,13 @@ Name 3 | https://example3.com"></textarea>
     return fields;
   }
 
+  // ชื่อในรูปแบบ "name | url" / "name, url" จะไม่มีทางเป็น URL เอง
+  // ใช้เช็คว่า field แรกเป็น URL ไหม เพื่อกัน URL ที่มี , หรือ | อยู่ข้างในถูกตัดผิด
+  function looksLikeUrl(s) {
+    return /^https?:\/\//i.test(s) ||
+           /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}([\/?#]|$)/i.test(s);
+  }
+
   function parseLine(line) {
     var trimmed = line.trim();
     if (!trimmed) return null;
@@ -469,18 +476,20 @@ Name 3 | https://example3.com"></textarea>
     // Skip obvious header rows
     if (/^\s*(name|ชื่อ)\s*[,|]\s*(url|link|ลิงก์)\s*$/i.test(trimmed)) return null;
 
-    // Pipe separator: "name | url"
+    // Pipe separator: "name | url" — แต่ถ้า field แรกเป็น URL อยู่แล้ว
+    // แปลว่า | อยู่ข้างใน URL ไม่ใช่ตัวคั่น → ปล่อยเป็น URL ทั้งบรรทัด
     if (trimmed.indexOf('|') !== -1) {
       var pipeIdx = trimmed.indexOf('|');
       var name = trimmed.substring(0, pipeIdx).trim();
       var url = trimmed.substring(pipeIdx + 1).trim();
-      if (url) return { name: name, url: url };
+      if (url && !looksLikeUrl(name)) return { name: name, url: url };
     }
 
-    // CSV-like: comma separator (URLs rarely contain commas)
-    if (trimmed.indexOf(',') !== -1 && !/^https?:\/\/[^\s,]+$/i.test(trimmed)) {
+    // CSV-like: comma separator — split เฉพาะเมื่อ field แรกไม่ใช่ URL
+    // (กัน URL ที่มี comma เช่น https://maps.google.com/?q=13.7,100.5 ถูกตัดผิด)
+    if (trimmed.indexOf(',') !== -1) {
       var fields = parseCSVLine(trimmed);
-      if (fields.length >= 2) {
+      if (fields.length >= 2 && !looksLikeUrl(fields[0].trim())) {
         var nm = fields[0].trim();
         var u = fields.slice(1).join(',').trim();
         if (u) return { name: nm, url: u };
