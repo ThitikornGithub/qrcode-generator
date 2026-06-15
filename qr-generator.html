@@ -211,6 +211,24 @@
 
   .hidden-input { display: none; }
 
+  .back-link {
+    display: inline-block;
+    font-size: 14px; color: var(--muted); text-decoration: none;
+    margin-bottom: 10px; transition: color .15s;
+  }
+  .back-link:hover { color: var(--primary); }
+
+  /* Color pickers: fill the field like the selects above, with a tidy border */
+  input[type="color"] {
+    width: 100%;
+    height: 42px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+  }
+
   /* ---- Responsive (mobile / small screens) ---- */
   @media (max-width: 640px) {
     body { padding: 16px; }
@@ -233,6 +251,7 @@
 <body>
 <div class="container">
   <header>
+    <a href="index.html" class="back-link">&larr; Home</a>
     <h1>QR Code Generator</h1>
     <div class="subtitle">สร้าง QR หลายอันพร้อมกัน • ตั้งชื่อได้ • รองรับ CSV • Export PNG / SVG</div>
   </header>
