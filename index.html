@@ -27,15 +27,17 @@
   }
   body {
     display: flex;
-    align-items: center;
-    justify-content: center;
     min-height: 100vh;
     background:
       radial-gradient(ellipse 80% 60% at 50% 0%, var(--bg-gradient) 0%, var(--bg) 70%),
       var(--bg);
-    overflow: hidden;
     position: relative;
+    padding: 48px 16px;
+    overflow-x: hidden;
   }
+  /* margin:auto centers when content fits, but lets the page scroll
+     safely (no top clipping) when content is taller than the viewport */
+  .container { margin: auto; }
 
   /* Ambient floating dots */
   .ambient {
@@ -237,6 +239,8 @@
     .container { padding: 20px; }
     .tools-grid { grid-template-columns: 1fr; max-width: 340px; gap: 12px; }
     .tool-card { min-height: auto; }
+    /* keep footer in normal flow so it can't overlap the cards on short screens */
+    .footer { position: static; margin-top: 32px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
