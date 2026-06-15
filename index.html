@@ -233,14 +233,17 @@
   }
 
   @media (max-width: 600px) {
+    /* stack vertically on mobile so the footer sits BELOW the content
+       instead of beside it (body is display:flex / row by default) */
+    body { flex-direction: column; padding: 32px 16px; }
     h1 { font-size: 30px; }
     p.subtitle { font-size: 14px; margin-bottom: 32px; }
     .qr-visual { width: 110px; height: 110px; margin-bottom: 24px; }
-    .container { padding: 20px; }
+    .container { padding: 20px; margin: 0 auto; }
     .tools-grid { grid-template-columns: 1fr; max-width: 340px; gap: 12px; }
     .tool-card { min-height: auto; }
-    /* keep footer in normal flow so it can't overlap the cards on short screens */
-    .footer { position: static; margin-top: 32px; }
+    /* footer back in normal flow, centered under the cards */
+    .footer { position: static; margin: 32px auto 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {
