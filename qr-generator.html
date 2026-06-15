@@ -210,6 +210,24 @@
   .toolbar-actions { display: flex; gap: 8px; }
 
   .hidden-input { display: none; }
+
+  /* ---- Responsive (mobile / small screens) ---- */
+  @media (max-width: 640px) {
+    body { padding: 16px; }
+    h1 { font-size: 20px; }
+    .card { padding: 16px; }
+    .row { gap: 12px; }
+    /* let every settings field take the full row so nothing overflows sideways.
+       !important is needed to beat the inline min-width:260px/280px on a few rows */
+    .row > .field,
+    .row > div { min-width: 0 !important; flex: 1 1 100%; }
+    .qr-grid { grid-template-columns: 1fr; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .toolbar-actions { width: 100%; }
+    .toolbar-actions button { flex: 1; }
+    .actions { flex-direction: column; align-items: stretch; }
+    .actions button { width: 100%; }
+  }
 </style>
 </head>
 <body>
