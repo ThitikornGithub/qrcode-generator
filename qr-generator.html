@@ -219,9 +219,11 @@
   }
   .back-link:hover { color: var(--primary); }
 
-  /* Color pickers: fill the field like the selects above, with a tidy border */
+  /* Color pickers: compact swatch with a tidy border (not stretched full-width) */
+  .field-color { flex: 0 1 150px; }
   input[type="color"] {
     width: 100%;
+    max-width: 130px;
     height: 42px;
     padding: 4px;
     border: 1px solid var(--border);
@@ -240,6 +242,8 @@
        !important is needed to beat the inline min-width:260px/280px on a few rows */
     .row > .field,
     .row > div { min-width: 0 !important; flex: 1 1 100%; }
+    /* keep the two colour pickers together on one row on mobile */
+    .row > .field-color { flex: 1 1 0 !important; }
     .qr-grid { grid-template-columns: 1fr; }
     .toolbar { flex-direction: column; align-items: stretch; }
     .toolbar-actions { width: 100%; }
@@ -327,13 +331,13 @@ Name 3 | https://example3.com"></textarea>
     </div>
 
     <div class="row" style="margin-top:12px;">
-      <div class="field">
+      <div class="field field-color">
         <label for="colorDark">สี QR</label>
-        <input type="color" id="colorDark" value="#000000" style="height:42px; padding:4px;" />
+        <input type="color" id="colorDark" value="#000000" />
       </div>
-      <div class="field">
+      <div class="field field-color">
         <label for="colorLight">สีพื้นหลัง</label>
-        <input type="color" id="colorLight" value="#ffffff" style="height:42px; padding:4px;" />
+        <input type="color" id="colorLight" value="#ffffff" />
       </div>
       <div class="field" style="display:flex; gap:20px; padding-top:22px; min-width:260px;">
         <div style="display:flex; gap:8px; align-items:center;">
