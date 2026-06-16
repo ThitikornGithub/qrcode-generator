@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>QR Code Generator — Batch</title>
 <script src="qrcode.js"></script>
+<script src="qr-core.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
@@ -434,12 +435,6 @@ Name 3 | https://example3.com"></textarea>
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  function escapeXml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-  }
-
   function sanitizeFilename(s) {
     return s
       .replace(/^https?:\/\//i, '')
@@ -447,15 +442,6 @@ Name 3 | https://example3.com"></textarea>
       .replace(/_+/g, '_')
       .replace(/^_+|_+$/g, '')
       .substring(0, 80) || 'qr';
-  }
-
-  function debounce(fn, delay) {
-    var t;
-    return function () {
-      var args = arguments, ctx = this;
-      clearTimeout(t);
-      t = setTimeout(function () { fn.apply(ctx, args); }, delay);
-    };
   }
 
   // ---------- Parsing ----------
@@ -714,88 +700,6 @@ Name 3 | https://example3.com"></textarea>
       sizePercent: parseInt($('logoSize').value, 10) || 22,
       shape: $('logoShape').value || 'circle'
     };
-  }
-
-  // ---------- Logo drawing helpers ----------
-
-  function roundRectPath(ctx, x, y, w, h, r) {
-    if (r > w / 2) r = w / 2;
-    if (r > h / 2) r = h / 2;
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.arcTo(x + w, y, x + w, y + h, r);
-    ctx.arcTo(x + w, y + h, x, y + h, r);
-    ctx.arcTo(x, y + h, x, y, r);
-    ctx.arcTo(x, y, x + w, y, r);
-    ctx.closePath();
-  }
-
-  function drawLogoOnCanvas(ctx, logo, qrAreaSize, qrOffsetX, qrOffsetY) {
-    if (!logo.enabled) return;
-    var size = qrAreaSize * (logo.sizePercent / 100);
-    var pad = size * 0.06;
-    var cx = qrOffsetX + qrAreaSize / 2;
-    var cy = qrOffsetY + qrAreaSize / 2;
-    var x = cx - size / 2;
-    var y = cy - size / 2;
-
-    ctx.save();
-    ctx.fillStyle = '#ffffff';
-    if (logo.shape === 'circle') {
-      ctx.beginPath();
-      ctx.arc(cx, cy, size / 2 + pad, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      var bgR = (size + pad * 2) * 0.18;
-      roundRectPath(ctx, x - pad, y - pad, size + pad * 2, size + pad * 2, bgR);
-      ctx.fill();
-    }
-    if (logo.shape === 'circle') {
-      ctx.beginPath();
-      ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
-      ctx.clip();
-    } else {
-      roundRectPath(ctx, x, y, size, size, size * 0.16);
-      ctx.clip();
-    }
-    var img = logo.image;
-    var dx = x, dy = y, dw = size, dh = size;
-    if (img.width !== img.height) {
-      var imgRatio = img.width / img.height;
-      if (imgRatio > 1) { dw = size * imgRatio; dx = x - (dw - size) / 2; }
-      else { dh = size / imgRatio; dy = y - (dh - size) / 2; }
-    }
-    ctx.drawImage(img, dx, dy, dw, dh);
-    ctx.restore();
-  }
-
-  function buildLogoSVG(logo, qrAreaSize, qrOffset) {
-    if (!logo.enabled || !logo.dataUrl) return '';
-    var size = qrAreaSize * (logo.sizePercent / 100);
-    var pad = size * 0.06;
-    var cx = qrOffset + qrAreaSize / 2;
-    var cy = qrOffset + qrAreaSize / 2;
-    var x = cx - size / 2;
-    var y = cy - size / 2;
-    var clipId = 'logoClip_' + Math.floor(Math.random() * 1e9).toString(36);
-    var bg, clipShape;
-    if (logo.shape === 'circle') {
-      bg = '<circle cx="' + cx.toFixed(3) + '" cy="' + cy.toFixed(3) + '" r="' + (size / 2 + pad).toFixed(3) + '" fill="#ffffff"/>';
-      clipShape = '<circle cx="' + cx.toFixed(3) + '" cy="' + cy.toFixed(3) + '" r="' + (size / 2).toFixed(3) + '"/>';
-    } else {
-      var bgR = (size + pad * 2) * 0.18;
-      bg = '<rect x="' + (x - pad).toFixed(3) + '" y="' + (y - pad).toFixed(3) +
-           '" width="' + (size + pad * 2).toFixed(3) + '" height="' + (size + pad * 2).toFixed(3) +
-           '" rx="' + bgR.toFixed(3) + '" fill="#ffffff"/>';
-      clipShape = '<rect x="' + x.toFixed(3) + '" y="' + y.toFixed(3) +
-                  '" width="' + size.toFixed(3) + '" height="' + size.toFixed(3) +
-                  '" rx="' + (size * 0.16).toFixed(3) + '"/>';
-    }
-    return '<defs><clipPath id="' + clipId + '">' + clipShape + '</clipPath></defs>' +
-           bg +
-           '<image href="' + logo.dataUrl + '" x="' + x.toFixed(3) + '" y="' + y.toFixed(3) +
-           '" width="' + size.toFixed(3) + '" height="' + size.toFixed(3) +
-           '" clip-path="url(#' + clipId + ')" preserveAspectRatio="xMidYMid slice"/>';
   }
 
   // ---------- Rendering ----------
@@ -1090,15 +994,6 @@ Name 3 | https://example3.com"></textarea>
   }
 
   // ---------- Download handlers ----------
-
-  function triggerDownload(href, filename) {
-    var a = document.createElement('a');
-    a.href = href;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
 
   function downloadPNG(entry) {
     var canvas = renderQRCanvas(renderForEntry(entry));
